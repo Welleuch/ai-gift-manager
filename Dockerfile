@@ -1,11 +1,10 @@
-# Use the latest Ubuntu 24.04 for the best library support
+# Use Ubuntu 24.04 for the latest GLIBC and library support
 FROM ubuntu:24.04
 
-# 1. Prevent interactive prompts during installation
+# Prevent interactive prompts during installation
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 2. Install Python, Pip, and ALL PrusaSlicer dependencies
-# We include every library we discovered during our debugging sessions
+# 1. Install Python, Pip, and all PrusaSlicer system dependencies
 RUN apt-get update && apt-get install -y \
     python3 \
     python3-pip \
@@ -23,24 +22,17 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# 3. Install the Python libraries for RunPod, Cloudflare R2, and APIs
-# Note: --break-system-packages is a new requirement for Ubuntu 24.04+
-RUN pip3 install \
-    runpod \
-    boto3 \
-    requests \
-    python-dotenv \
-    --break-system-packages
+# 2. Install Python libraries
+# We use --break-system-packages because Ubuntu 24.04 requires it for global pip installs
+RUN pip3 install runpod boto3 requests python-dotenv --break-system-packages
 
-# 4. Create the application directory
-WORKDIR /app
+# 3. Set the working directory to root
+WORKDIR /
 
-# 5. Copy your code and config files into the image
-# (We will create these in the next steps)
+# 4. Copy everything from your GitHub repo to the root of the container
+# This puts config.ini at /config.ini and your workflows at /workflows/
 COPY . .
 
-# 6. Make sure the Slicer path is standard
-ENV PRUSA_PATH="/usr/bin/prusaslicer"
-
-# 7. Start the RunPod Serverless handler
-CMD [ "python3", "-u", "handler.py" ]
+# 5. Start the RunPod handler
+# Note: We assume handler.py is inside the 'app' folder based on your previous structure
+CMD [ "python3", "-u", "/app/handler.py" ]
