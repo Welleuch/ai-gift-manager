@@ -1,11 +1,18 @@
-# Use Ubuntu 24.04 for the latest GLIBC and library support
+# Use Ubuntu 24.04 base
 FROM ubuntu:24.04
 
-# Prevent interactive prompts during installation
+# Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 1. Install Python, Pip, and all PrusaSlicer system dependencies
+# 1. Install system tools and enable the 'universe' repository
 RUN apt-get update && apt-get install -y \
+    software-properties-common \
+    && add-apt-repository universe \
+    && apt-get update
+
+# 2. Install Python, Pip, and all PrusaSlicer dependencies
+# We use the specific library names for Ubuntu 24.04 (Noble)
+RUN apt-get install -y \
     python3 \
     python3-pip \
     prusaslicer \
@@ -22,17 +29,17 @@ RUN apt-get update && apt-get install -y \
     curl \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Install Python libraries
-# We use --break-system-packages because Ubuntu 24.04 requires it for global pip installs
+# 3. Install Python libraries
 RUN pip3 install runpod boto3 requests python-dotenv --break-system-packages
 
-# 3. Set the working directory to root
+# 4. Set working directory
 WORKDIR /
 
-# 4. Copy everything from your GitHub repo to the root of the container
-# This puts config.ini at /config.ini and your workflows at /workflows/
+# 5. Copy your local files into the Docker container
 COPY . .
 
-# 5. Start the RunPod handler
-# Note: We assume handler.py is inside the 'app' folder based on your previous structure
+# 6. Ensure the handler is executable
+RUN chmod +x /app/handler.py
+
+# 7. Start the RunPod handler
 CMD [ "python3", "-u", "/app/handler.py" ]
