@@ -4,15 +4,11 @@ FROM ubuntu:24.04
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 1. Install system tools and enable the 'universe' repository
-RUN apt-get update && apt-get install -y \
-    software-properties-common \
-    && add-apt-repository universe \
-    && apt-get update
-
-# 2. Install Python, Pip, and all PrusaSlicer dependencies
-# We use the specific library names for Ubuntu 24.04 (Noble)
-RUN apt-get install -y \
+# 1. Manually enable 'universe' repository and install dependencies
+# We edit the new Ubuntu 24.04 sources format directly
+RUN apt-get update && apt-get install -y curl ca-certificates \
+    && sed -i 's/Components: main restricted/Components: main restricted universe/' /etc/apt/sources.list.d/ubuntu.sources \
+    && apt-get update && apt-get install -y \
     python3 \
     python3-pip \
     prusaslicer \
@@ -26,20 +22,20 @@ RUN apt-get install -y \
     libxrandr2 \
     libnss3 \
     libgbm1 \
-    curl \
     && rm -rf /var/lib/apt/lists/*
 
-# 3. Install Python libraries
+# 2. Install Python libraries
+# We use --break-system-packages because Ubuntu 24.04 enforces managed environments
 RUN pip3 install runpod boto3 requests python-dotenv --break-system-packages
 
-# 4. Set working directory
+# 3. Set working directory
 WORKDIR /
 
-# 5. Copy your local files into the Docker container
+# 4. Copy your local files into the Docker container
 COPY . .
 
-# 6. Ensure the handler is executable
+# 5. Ensure the handler is executable
 RUN chmod +x /app/handler.py
 
-# 7. Start the RunPod handler
+# 6. Start the RunPod handler
 CMD [ "python3", "-u", "/app/handler.py" ]
