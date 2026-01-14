@@ -118,6 +118,11 @@ def handler(job):
 
             # Call GPU worker
             res = call_gpu_artist(workflow)
+            print(f"🔍 GPU Response: {json.dumps(res)}")
+            
+            if 'output' not in res:
+                raise Exception(f"GPU worker did not return output. Response: {res}")
+
             b64_data = res['output']['message']
             
             # Upload to R2
@@ -137,6 +142,11 @@ def handler(job):
             
             # Call GPU worker
             res = call_gpu_artist(workflow)
+            print(f"🔍 GPU Response: {json.dumps(res)}")
+
+            if 'output' not in res:
+                raise Exception(f"GPU worker did not return output. Response: {res}")
+                
             b64_data = res['output']['message']
             
             # Upload to R2
