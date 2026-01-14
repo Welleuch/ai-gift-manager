@@ -4,14 +4,15 @@ FROM ubuntu:24.04
 # Prevent interactive prompts
 ENV DEBIAN_FRONTEND=noninteractive
 
-# 1. Manually enable 'universe' repository and install dependencies
-# We edit the new Ubuntu 24.04 sources format directly
-RUN apt-get update && apt-get install -y curl ca-certificates \
-    && sed -i 's/Components: main restricted/Components: main restricted universe/' /etc/apt/sources.list.d/ubuntu.sources \
-    && apt-get update && apt-get install -y \
+# Install system dependencies + PrusaSlicer dependencies
+RUN apt-get update && apt-get install -y \
+    curl \
+    ca-certificates \
+    git \
+    wget \
+    xvfb \
     python3 \
     python3-pip \
-    prusaslicer \
     libwebkit2gtk-4.1-0 \
     libasound2t64 \
     libatk1.0-0t64 \
@@ -22,20 +23,37 @@ RUN apt-get update && apt-get install -y curl ca-certificates \
     libxrandr2 \
     libnss3 \
     libgbm1 \
+    libgtk-3-0 \
+    libglew2.2 \
     && rm -rf /var/lib/apt/lists/*
 
-# 2. Install Python libraries
-# We use --break-system-packages because Ubuntu 24.04 enforces managed environments
-RUN pip3 install runpod boto3 requests python-dotenv --break-system-packages
+# Install PrusaSlicer from official GitHub release
+RUN PRUSA_VERSION=2.7.1 && \
+    wget -O /tmp/prusa.tar.bz2 "https://github.com/prusa3d/PrusaSlicer/releases/download/version_${PRUSA_VERSION}/PrusaSlicer-${PRUSA_VERSION}+linux-x64-GTK3-202401111315.tar.bz2" && \
+    mkdir -p /opt/prusa-slicer && \
+    tar -xjf /tmp/prusa.tar.bz2 -C /opt/prusa-slicer --strip-components=1 && \
+    ln -s /opt/prusa-slicer/prusa-slicer /usr/local/bin/prusa-slicer && \
+    rm /tmp/prusa.tar.bz2
 
-# 3. Set working directory
+# Set display environment variable for headless GUI apps
+ENV DISPLAY=:99
+
+# Set working directory
 WORKDIR /
 
-# 4. Copy your local files into the Docker container
+# Copy ALL project files
 COPY . .
 
-# 5. Ensure the handler is executable
+# Install Python dependencies
+RUN pip3 install -r requirements.txt --break-system-packages
+
+# Ensure handler is executable
 RUN chmod +x /app/handler.py
 
-# 6. Start the RunPod handler
-CMD [ "python3", "-u", "/app/handler.py" ]
+# Verify installations
+RUN python3 --version && \
+    prusa-slicer --version && \
+    echo "✓ All dependencies installed successfully"
+
+# Start the RunPod serverless handler
+CMD ["python3", "-u", "/app/handler.py"]
