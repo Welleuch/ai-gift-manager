@@ -29,7 +29,7 @@ RUN apt-get update && apt-get install -y \
 
 # Install PrusaSlicer from official GitHub release
 RUN PRUSA_VERSION=2.7.1 && \
-    wget -O /tmp/prusa.tar.bz2 "https://github.com/prusa3d/PrusaSlicer/releases/download/version_${PRUSA_VERSION}/PrusaSlicer-${PRUSA_VERSION}+linux-x64-GTK3-202401111315.tar.bz2" && \
+    wget -O /tmp/prusa.tar.bz2 "https://github.com/prusa3d/PrusaSlicer/releases/download/version_${PRUSA_VERSION}/PrusaSlicer-${PRUSA_VERSION}+linux-x64-GTK3-202312121425.tar.bz2" && \
     mkdir -p /opt/prusa-slicer && \
     tar -xjf /tmp/prusa.tar.bz2 -C /opt/prusa-slicer --strip-components=1 && \
     ln -s /opt/prusa-slicer/prusa-slicer /usr/local/bin/prusa-slicer && \
