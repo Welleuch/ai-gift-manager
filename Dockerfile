@@ -52,7 +52,7 @@ RUN chmod +x /app/handler.py
 
 # Verify installations
 RUN python3 --version && \
-    prusa-slicer --version && \
+    prusa-slicer --help > /dev/null && \
     echo "✓ All dependencies installed successfully"
 
 # Start the RunPod serverless handler
