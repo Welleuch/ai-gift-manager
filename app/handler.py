@@ -120,8 +120,13 @@ def handler(job):
             res = call_gpu_artist(workflow)
             print(f"🔍 GPU Response: {json.dumps(res)}")
             
+            # Check for non-completed status (e.g. queued)
+            if res.get('status') == 'IN_QUEUE':
+                print("⚠️ GPU worker is busy (queued)")
+                return {"error": "System is currently at capacity (GPU queued). Please try again in a few minutes."}
+                
             if 'output' not in res:
-                raise Exception(f"GPU worker did not return output. Response: {res}")
+                raise Exception(f"GPU worker did not return output. Status: {res.get('status')}, Response: {res}")
 
             b64_data = res['output']['message']
             
@@ -144,8 +149,12 @@ def handler(job):
             res = call_gpu_artist(workflow)
             print(f"🔍 GPU Response: {json.dumps(res)}")
 
+            # Check for non-completed status
+            if res.get('status') == 'IN_QUEUE':
+                return {"error": "System is currently at capacity (GPU queued). Please try again in a few minutes."}
+
             if 'output' not in res:
-                raise Exception(f"GPU worker did not return output. Response: {res}")
+                raise Exception(f"GPU worker did not return output. Status: {res.get('status')}, Response: {res}")
                 
             b64_data = res['output']['message']
             
