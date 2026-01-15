@@ -24,7 +24,7 @@ def start_xvfb():
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE
             )
-            time.sleep(2)  # Give Xvfb time to start
+            time.sleep(2)
             print("✓ Xvfb started for headless PrusaSlicer")
         except Exception as e:
             print(f"⚠️ Xvfb start failed: {e}")
@@ -73,21 +73,99 @@ def upload_data_to_r2(data, file_name, is_base64=True):
         print(f"❌ R2 Upload Error: {e}")
         return None
 
-# --- GPU WORKER CALLER ---
-def call_gpu_artist(workflow):
-    """Call the GPU endpoint for image/3D generation"""
-    url = f"https://api.runpod.ai/v2/{os.getenv('GPU_ENDPOINT_ID')}/runsync"
-    headers = {"Authorization": f"Bearer {os.getenv('RUNPOD_API_KEY')}"}
+# --- CORRECT GPU WORKER CALLER ---
+def call_gpu_artist(prompt_data, job_id, timeout=600):
+    """Call the GPU endpoint for image/3D generation ASYNCHRONOUSLY"""
+    api_key = os.getenv('RUNPOD_API_KEY')
+    endpoint_id = os.getenv('GPU_ENDPOINT_ID')
     
-    print(f"🎨 Calling GPU worker...")
-    response = requests.post(
-        url, 
-        json={"input": {"workflow": workflow}}, 
-        headers=headers, 
-        timeout=300
-    )
+    if not api_key or not endpoint_id:
+        raise Exception("Missing RUNPOD_API_KEY or GPU_ENDPOINT_ID environment variables")
     
-    return response.json()
+    # 1. Start the job asynchronously
+    start_url = f"https://api.runpod.ai/v2/{endpoint_id}/run"
+    headers = {
+        "Authorization": f"Bearer {api_key}",
+        "Content-Type": "application/json"
+    }
+    
+    print(f"🎨 Starting ComfyUI job on endpoint {endpoint_id}...")
+    
+    payload = {
+        "input": {
+            "prompt": prompt_data,  # KEY FIX: "prompt" not "workflow"
+            "client_id": f"handler-{job_id}",
+            "extra_data": {"job_id": job_id}
+        }
+    }
+    
+    print(f"📤 Sending payload to ComfyUI...")
+    
+    try:
+        response = requests.post(start_url, json=payload, headers=headers, timeout=30)
+        response.raise_for_status()
+        job_data = response.json()
+        
+        if 'id' not in job_data:
+            raise Exception(f"No job ID in response: {job_data}")
+        
+        job_id = job_data['id']
+        print(f"✅ Job started with ID: {job_id}")
+        
+    except requests.exceptions.RequestException as e:
+        print(f"❌ Failed to start job: {e}")
+        if hasattr(e, 'response') and e.response:
+            print(f"Response: {e.response.text}")
+        raise Exception(f"Failed to start ComfyUI job: {e}")
+    
+    # 2. Poll for completion
+    status_url = f"https://api.runpod.ai/v2/{endpoint_id}/status/{job_id}"
+    
+    start_time = time.time()
+    while time.time() - start_time < timeout:
+        try:
+            status_response = requests.get(status_url, headers=headers, timeout=30)
+            status_response.raise_for_status()
+            status_data = status_response.json()
+            
+            print(f"📊 Job status: {status_data.get('status')}")
+            
+            if status_data['status'] == 'COMPLETED':
+                print("✅ Job completed successfully!")
+                
+                # Extract output from ComfyUI response
+                output = status_data.get('output', {})
+                
+                # ComfyUI returns image data in different formats
+                if 'images' in output:
+                    # Handle multiple images
+                    return {"images": output['images']}
+                elif 'message' in output:
+                    # Handle single base64 image
+                    return {"message": output['message']}
+                else:
+                    # Return raw output for debugging
+                    print(f"📦 Raw output: {output}")
+                    return output
+                    
+            elif status_data['status'] == 'FAILED':
+                error_msg = status_data.get('error', 'Unknown error')
+                print(f"❌ Job failed: {error_msg}")
+                raise Exception(f"ComfyUI job failed: {error_msg}")
+                
+            elif status_data['status'] == 'IN_QUEUE':
+                print("⏳ Job in queue, waiting...")
+                
+            elif status_data['status'] == 'IN_PROGRESS':
+                print("🔄 Job in progress...")
+                
+            time.sleep(5)  # Wait 5 seconds before polling again
+            
+        except requests.exceptions.RequestException as e:
+            print(f"⚠️ Polling error: {e}")
+            time.sleep(5)
+    
+    raise Exception(f"Job timeout after {timeout} seconds")
 
 # --- THE MAIN HANDLER ---
 def handler(job):
@@ -95,7 +173,9 @@ def handler(job):
     try:
         job_input = job['input']
         task_type = job_input.get("type")
-        print(f"📥 Received job type: {task_type}")
+        job_id = job.get('id', 'unknown')
+        
+        print(f"📥 Received job type: {task_type}, Job ID: {job_id}")
 
         # ==================== A. CHAT ====================
         if task_type == "CHAT":
@@ -116,22 +196,22 @@ def handler(job):
             workflow["34:27"]["inputs"]["text"] = prompt
             workflow["34:3"]["inputs"]["seed"] = random.randint(1, 10**14)
 
-            # Call GPU worker
-            res = call_gpu_artist(workflow)
-            print(f"🔍 GPU Response: {json.dumps(res)}")
+            # Call GPU worker CORRECTLY
+            res = call_gpu_artist(workflow, job_id, timeout=300)
             
-            # Check for non-completed status (e.g. queued)
-            if res.get('status') == 'IN_QUEUE':
-                print("⚠️ GPU worker is busy (queued)")
-                return {"error": "System is currently at capacity (GPU queued). Please try again in a few minutes."}
-                
-            if 'output' not in res:
-                raise Exception(f"GPU worker did not return output. Status: {res.get('status')}, Response: {res}")
-
-            b64_data = res['output']['message']
+            # Extract base64 image from response
+            if 'message' in res:
+                b64_data = res['message']
+            elif 'images' in res and len(res['images']) > 0:
+                b64_data = res['images'][0]
+            else:
+                raise Exception(f"Unexpected response format: {res}")
             
             # Upload to R2
-            url = upload_data_to_r2(b64_data, f"img_{job['id']}.png")
+            url = upload_data_to_r2(b64_data, f"img_{job_id}.png")
+            
+            if not url:
+                raise Exception("Failed to upload image to R2")
             
             return {"images": [url]}
 
@@ -146,20 +226,21 @@ def handler(job):
             workflow["1"]["inputs"]["image"] = job_input.get("image_url")
             
             # Call GPU worker
-            res = call_gpu_artist(workflow)
-            print(f"🔍 GPU Response: {json.dumps(res)}")
-
-            # Check for non-completed status
-            if res.get('status') == 'IN_QUEUE':
-                return {"error": "System is currently at capacity (GPU queued). Please try again in a few minutes."}
-
-            if 'output' not in res:
-                raise Exception(f"GPU worker did not return output. Status: {res.get('status')}, Response: {res}")
-                
-            b64_data = res['output']['message']
+            res = call_gpu_artist(workflow, job_id, timeout=600)  # Longer timeout for 3D
+            
+            # Extract 3D model from response
+            if 'message' in res:
+                b64_data = res['message']
+            elif 'images' in res and len(res['images']) > 0:
+                b64_data = res['images'][0]
+            else:
+                raise Exception(f"Unexpected response format: {res}")
             
             # Upload to R2
-            url = upload_data_to_r2(b64_data, f"model_{job['id']}.glb")
+            url = upload_data_to_r2(b64_data, f"model_{job_id}.glb")
+            
+            if not url:
+                raise Exception("Failed to upload 3D model to R2")
             
             return {"images": [url]}
 
@@ -214,9 +295,12 @@ def handler(job):
             # Upload to R2
             url = upload_data_to_r2(
                 Path(output_gcode).read_bytes(), 
-                f"print_{job['id']}.gcode", 
+                f"print_{job_id}.gcode", 
                 is_base64=False
             )
+            
+            if not url:
+                raise Exception("Failed to upload G-code to R2")
             
             return {
                 "status": "success", 
