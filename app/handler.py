@@ -1,4 +1,5 @@
 import runpod
+from runpod.serverless import start
 import os
 import requests
 import json
@@ -322,4 +323,4 @@ def handler(job):
         }
 
 # Start RunPod serverless worker
-runpod.serverless.start({"handler": handler})
+start({"handler": handler})
