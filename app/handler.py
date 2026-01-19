@@ -94,7 +94,7 @@ def call_gpu_artist(prompt_data, job_id, timeout=600):
     
     payload = {
         "input": {
-            "prompt": prompt_data,  # KEY FIX: "prompt" not "workflow"
+            "workflow": prompt_data,
             "client_id": f"handler-{job_id}",
             "extra_data": {"job_id": job_id}
         }
