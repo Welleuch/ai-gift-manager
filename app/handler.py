@@ -46,7 +46,8 @@ def get_r2_client():
 
 def upload_data_to_r2(data, file_name, is_base64=True):
     """Upload file to R2 and return public URL"""
-    try:
+    try:...
+    
         client = get_r2_client()
         bucket = os.getenv("R2_BUCKET_NAME")
         
