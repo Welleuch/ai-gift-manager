@@ -48,7 +48,7 @@ COPY . .
 RUN pip3 install -r requirements.txt --break-system-packages
 
 # Ensure handler is executable
-RUN chmod +x app/handler.py
+RUN chmod +x handler.py
 
 # Verify installations
 RUN python3 --version && \
@@ -56,4 +56,4 @@ RUN python3 --version && \
     echo "✓ All dependencies installed successfully"
 
 # Start the RunPod serverless handler
-CMD ["python3", "-u", "app/handler.py"]
+CMD ["python3", "-u", "handler.py"]

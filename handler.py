@@ -190,7 +190,9 @@ def handler(job):
         if task_type == "GEN_IMAGE":
             print("🖼️ Starting image generation...")
             
-            with open("/app/workflows/stage1_image.json", "r") as f:
+            # Load workflow relative to script
+            base_path = Path(__file__).parent
+            with open(base_path / "workflows/stage1_image.json", "r") as f:
                 workflow = json.load(f)
             
             # Inject prompt
@@ -221,7 +223,9 @@ def handler(job):
         if task_type == "GEN_3D":
             print("🧊 Starting 3D generation...")
             
-            with open("/app/workflows/stage2_3d_final.json", "r") as f:
+            # Load workflow relative to script
+            base_path = Path(__file__).parent
+            with open(base_path / "workflows/stage2_3d_final.json", "r") as f:
                 workflow = json.load(f)
             
             # Pass image URL to workflow
@@ -266,7 +270,7 @@ def handler(job):
                 "--export-gcode",
                 "--center", "100,100",
                 "--ensure-on-bed",
-                "--load", "/config.ini",
+                "--load", str(Path(__file__).parent / "config.ini"),
                 "--output", output_gcode,
                 temp_stl
             ]
