@@ -39,7 +39,7 @@ RUN PRUSA_VERSION=2.7.1 && \
 ENV DISPLAY=:99
 
 # Set working directory
-WORKDIR /
+WORKDIR /app
 
 # Copy ALL project files
 COPY . .

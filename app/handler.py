@@ -190,7 +190,7 @@ def handler(job):
         if task_type == "GEN_IMAGE":
             print("🖼️ Starting image generation...")
             
-            with open("/workflows/stage1_image.json", "r") as f:
+            with open("/app/workflows/stage1_image.json", "r") as f:
                 workflow = json.load(f)
             
             # Inject prompt
@@ -221,7 +221,7 @@ def handler(job):
         if task_type == "GEN_3D":
             print("🧊 Starting 3D generation...")
             
-            with open("/workflows/stage2_3d_final.json", "r") as f:
+            with open("/app/workflows/stage2_3d_final.json", "r") as f:
                 workflow = json.load(f)
             
             # Pass image URL to workflow
