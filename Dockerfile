@@ -7,15 +7,22 @@ FROM runpod/worker-comfyui:5.0.0-base
 
 # 1. ComfyUI-HunyuanWorldnode
 # Required for: 'Hunyuan3Dv2Conditioning', 'VAEDecodeHunyuan3D', 'SaveGLB', 'VoxelToMesh'
-RUN comfy-node-install https://github.com/A043-studios/ComfyUI_HunyuanWorldnode
+# Install custom nodes via git clone (fallback since comfy-node-install is missing in path)
+WORKDIR /comfyui/custom_nodes
+
+# 1. ComfyUI-HunyuanWorldnode
+RUN git clone https://github.com/A043-studios/ComfyUI_HunyuanWorldnode
 
 # 2. ComfyUI-RMBG
-# Required for: 'BiRefNetRMBG'
-RUN comfy-node-install https://github.com/1038lab/ComfyUI-RMBG
+RUN git clone https://github.com/1038lab/ComfyUI-RMBG
 
 # 3. ComfyUI-KJNodes
-# Good to have for general utility and missing nodes often found in workflows
-RUN comfy-node-install https://github.com/kijai/ComfyUI-KJNodes
+RUN git clone https://github.com/kijai/ComfyUI-KJNodes && \
+    cd ComfyUI-KJNodes && \
+    pip install -r requirements.txt
+
+# Return to root
+WORKDIR /
 
 # ------------------------------------------------------------------------------
 # MODEL STRATEGY
