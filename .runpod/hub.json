@@ -1,0 +1,17 @@
+{
+    "title": "AI Gift Customer GPU Worker",
+    "description": "ComfyUI GPU Worker with baked custom nodes (Hunyuan3D, RMBG)",
+    "type": "serverless",
+    "category": "image",
+    "iconUrl": "",
+    "config": {
+        "runson": "GPU",
+        "containerDiskinGb": 20,
+        "env": [
+            {
+                "name": "CLI_ARGS",
+                "value": "--extra-model-paths-config /comfyui/extra_model_paths.yaml"
+            }
+        ]
+    }
+}
