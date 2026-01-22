@@ -17,7 +17,7 @@ RUN git clone https://github.com/1038lab/ComfyUI-RMBG
 # 3. ComfyUI-KJNodes
 RUN git clone https://github.com/kijai/ComfyUI-KJNodes && \
     cd ComfyUI-KJNodes && \
-    pip install -r requirements.txt
+    pip install --no-cache-dir -r requirements.txt
 
 # Return to root
 WORKDIR /
