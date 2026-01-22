@@ -1,59 +1,34 @@
-# Use Ubuntu 24.04 base
-FROM ubuntu:24.04
+FROM runpod/worker-comfyui:5.0.0-base
 
-# Prevent interactive prompts
-ENV DEBIAN_FRONTEND=noninteractive
+# ------------------------------------------------------------------------------
+# BAKING CUSTOM NODES
+# We install these during the build so they are instant at runtime.
+# ------------------------------------------------------------------------------
 
-# Install system dependencies + PrusaSlicer dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    ca-certificates \
-    git \
-    wget \
-    xvfb \
-    python3 \
-    python3-pip \
-    libwebkit2gtk-4.1-0 \
-    libasound2t64 \
-    libatk1.0-0t64 \
-    libglu1-mesa \
-    libxcursor1 \
-    libxinerama1 \
-    libdbus-1-3 \
-    libxrandr2 \
-    libnss3 \
-    libgbm1 \
-    libgtk-3-0 \
-    libglew2.2 \
-    && rm -rf /var/lib/apt/lists/*
+# 1. ComfyUI-HunyuanWorldnode
+# Required for: 'Hunyuan3Dv2Conditioning', 'VAEDecodeHunyuan3D', 'SaveGLB', 'VoxelToMesh'
+RUN comfy-node-install https://github.com/A043-studios/ComfyUI_HunyuanWorldnode
 
-# Install PrusaSlicer from official GitHub release
-RUN PRUSA_VERSION=2.7.1 && \
-    wget -O /tmp/prusa.tar.bz2 "https://github.com/prusa3d/PrusaSlicer/releases/download/version_${PRUSA_VERSION}/PrusaSlicer-${PRUSA_VERSION}+linux-x64-GTK3-202312121425.tar.bz2" && \
-    mkdir -p /opt/prusa-slicer && \
-    tar -xjf /tmp/prusa.tar.bz2 -C /opt/prusa-slicer --strip-components=1 && \
-    ln -s /opt/prusa-slicer/prusa-slicer /usr/local/bin/prusa-slicer && \
-    rm /tmp/prusa.tar.bz2
+# 2. ComfyUI-RMBG
+# Required for: 'BiRefNetRMBG'
+RUN comfy-node-install https://github.com/1038lab/ComfyUI-RMBG
 
-# Set display environment variable for headless GUI apps
-ENV DISPLAY=:99
+# 3. ComfyUI-KJNodes
+# Good to have for general utility and missing nodes often found in workflows
+RUN comfy-node-install https://github.com/kijai/ComfyUI-KJNodes
 
-# Set working directory
-WORKDIR /app
+# ------------------------------------------------------------------------------
+# MODEL STRATEGY
+# ------------------------------------------------------------------------------
+# Copy the extra paths config so ComfyUI knows where to find models on the volume
+COPY extra_model_paths.yaml /comfyui/extra_model_paths.yaml
 
-# Copy ALL project files
-COPY . .
+# The base image automatically starts ComfyUI. 
+# We don't need to explicitly pass --extra-model-paths-config if we place it where ComfyUI looks,
+# OR we can rely on standard loading. 
+# However, runpod-workers/worker-comfyui usually allows arguments via environment variables or expected paths.
+# A safe bet is to putting it in the root or `models` folder if the base supports it.
+# Better yet, the handler might ignore it. 
+# Let's just ensure it's there. The best way with this image is often to bake or mount.
+# But since we are mounting, we need this file.
 
-# Install Python dependencies
-RUN pip3 install -r requirements.txt --break-system-packages
-
-# Ensure handler is executable
-RUN chmod +x handler.py
-
-# Verify installations
-RUN python3 --version && \
-    prusa-slicer --help > /dev/null && \
-    echo "✓ All dependencies installed successfully"
-
-# Start the RunPod serverless handler
-CMD ["python3", "-u", "handler.py"]
