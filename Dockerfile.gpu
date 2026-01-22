@@ -1,29 +1,12 @@
 FROM runpod/worker-comfyui:5.0.0-base
 
-# ------------------------------------------------------------------------------
-# BAKING CUSTOM NODES
-# We install these during the build so they are instant at runtime.
-# ------------------------------------------------------------------------------
-
-# Install custom nodes via git clone
-WORKDIR /comfyui/custom_nodes
-
-# 1. ComfyUI-HunyuanWorldnode
-RUN git clone https://github.com/A043-studios/ComfyUI_HunyuanWorldnode
-
-# 2. ComfyUI-RMBG
-RUN git clone https://github.com/1038lab/ComfyUI-RMBG
-
-# 3. ComfyUI-KJNodes
-RUN git clone https://github.com/kijai/ComfyUI-KJNodes && \
+# Consolidate all node installations into one layer to prevent RunPod build metadata timeouts
+RUN cd /comfyui/custom_nodes && \
+    git clone https://github.com/A043-studios/ComfyUI_HunyuanWorldnode && \
+    git clone https://github.com/1038lab/ComfyUI-RMBG && \
+    git clone https://github.com/kijai/ComfyUI-KJNodes && \
     cd ComfyUI-KJNodes && \
     pip install --no-cache-dir -r requirements.txt
 
-# Return to root
-WORKDIR /
-
-# ------------------------------------------------------------------------------
-# MODEL STRATEGY
-# ------------------------------------------------------------------------------
-# Copy the extra paths config so ComfyUI knows where to find models on the volume
+# Strategy for models - ensures comfyui finds them on the network volume
 COPY extra_model_paths.yaml /comfyui/extra_model_paths.yaml
