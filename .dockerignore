@@ -1,0 +1,5 @@
+.git
+.runpod
+ComfyUI-GGUF
+__pycache__
+*.pyc

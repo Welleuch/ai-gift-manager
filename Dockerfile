@@ -11,4 +11,4 @@ COPY extra_model_paths.yaml /comfyui/extra_model_paths.yaml
 RUN sed -i 's/\r$//' /start_worker.sh && chmod +x /start_worker.sh
 
 # 4. Set entrypoint
-CMD ["/start_worker.sh"]
+CMD ["/bin/bash", "/start_worker.sh"]
