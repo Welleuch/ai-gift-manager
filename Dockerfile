@@ -1,12 +1,11 @@
 FROM runpod/worker-comfyui:5.0.0-base
 
-# Consolidate all node installations into one layer to prevent RunPod build metadata timeouts
-RUN cd /comfyui/custom_nodes && \
-    git clone https://github.com/A043-studios/ComfyUI_HunyuanWorldnode && \
-    git clone https://github.com/1038lab/ComfyUI-RMBG && \
-    git clone https://github.com/kijai/ComfyUI-KJNodes && \
-    cd ComfyUI-KJNodes && \
-    pip install --no-cache-dir -r requirements.txt
+# 1. Copy the startup script
+COPY start_worker.sh /start_worker.sh
+RUN chmod +x /start_worker.sh
 
-# Strategy for models - ensures comfyui finds them on the network volume
+# 2. Copy model config
 COPY extra_model_paths.yaml /comfyui/extra_model_paths.yaml
+
+# 3. Set entrypoint to our script
+CMD ["/start_worker.sh"]
